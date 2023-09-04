@@ -1,71 +1,127 @@
-# workspace-settings-cycler README
+# Workspace Settings Cycler
 
-This is the README for your extension "workspace-settings-cycler". After writing up a brief description, we recommend including the following sections.
+Control any VS Code setting in your workspace by your favorite keybindings. This extension exist mainly to control settings of your current __workspace__ via keybindings
 
-## Features
+## Sample Configuration
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+```json
+ {
+    "key": "ctrl+shift+alt+x",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "show_tabs",
+      "values": {
+        "workbench.editor.showTabs": "$toggle",
+      },
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+=",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "workspace_zoom_inc",
+      "values": {
+        "window.zoomLevel": "$inc",
+      },
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+-",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "workspace_zoom_dec",
+      "values": {
+        "window.zoomLevel": "$dec",
+      },
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+l",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "show_line_numbers",
+      "values": {
+        "editor.lineNumbers": "$toggle"
+      },
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+s",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "show_status_bar",
+      "values": {
+        "workbench.statusBar.visible": "$toggle"
+      },
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+a",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "show_activity_bar",
+      "values": {
+        "workbench.activityBar.visible": "$toggle"
+      },
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+t",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "id": "toggle_sidebar_location",
+      "values": [
+        {
+          "workbench.sideBar.location": "right"
+        },
+        {
+          "workbench.sideBar.location": "left"
+        }
+      ]
+    }
+  },
 
-For example if there is an image subfolder under your extension project workspace:
+```
 
-\!\[feature X\]\(images/feature-x.png\)
+**key**
+The shortcut you want to use
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+**command**
+Command should always be `workspace.settings.cycler`. You can create multiple keybindings and use the same `command` name.
 
-## Requirements
+**args**
+arguments for the settings you want to toggle.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+**args.id**
+This is the **unique** id/name for the set of settings you want to toggle.
 
-## Extension Settings
+**args.values**
+This is an array for settings you want to toggle. Every item in this array is a simple JavaScript dictionary, the format is like.
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+```
+{
+	"<SettingName>": <SettingValue>,
+	"<SettingName>": <SettingValue>,
+	...
+}
+```
 
-For example:
+You can use single object instead of array.
 
-This extension contributes the following settings:
+Special values can be used for settings:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- `$inc` - will increment setting value. usefull to control zoom levels or font sizes
+- `$dec` - oposite to `$inc`, will decrement setting value
+- `$toggle` - will switch toggable setting
+- - `true` <=> `false`,
+- - `0` <=> `1`,
+- - `'on'` <=> `'off'`,
+- - `'yes'` <=> `'no'`,
+- - `'enabled'` <=> `'disabled'`,
+- - `'active'` <=> `'inactive'`
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Initial release
