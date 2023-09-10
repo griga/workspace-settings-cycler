@@ -6,7 +6,7 @@ Control any VS Code setting in your workspace by your favorite keybindings. This
 
 ```json
   {
-    "key": "ctrl+shift+alt+t",
+    "key": "ctrl+shift+alt+e",
     "command": "workspace.settings.cycler",
     "args": {
       "workbench.editor.showTabs": "$toggle",
