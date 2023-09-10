@@ -1,27 +1,24 @@
 import * as vscode from 'vscode';
+import * as hash from 'object-hash';
 
-function shallowEqual(a: any, b: any): boolean {
-  // only check fist depth
-  for (let key in a) {
-    if (!a.hasOwnProperty(key)) continue;
-    if (!b.hasOwnProperty(key)) return false;
-    if (a[key] === b[key]) continue;
-    if (typeof a[key] !== 'object') return false;
-  }
-  for (let key in b) {
-    if (b.hasOwnProperty(key) && !a.hasOwnProperty(key)) return false;
-  }
-  return true;
-}
+type CyclerConfiguration = {
+  $global: boolean;
+  $step: number;
+  $min: number;
+  $max: number;
+};
 
 type Configuration = {
-  [key: string]: unknown;
+  [settingKey: string]: unknown;
 };
 
-type SettingsCyclerArguments = {
-  id: string;
-  values: Configuration | Configuration[];
-};
+type SettingsCyclerArguments =
+  | Configuration
+  | Configuration[]
+  | {
+      $global: boolean;
+      $values: Configuration | Configuration[];
+    };
 
 type InspectionResult<T> =
   | {
@@ -56,6 +53,8 @@ const OPOSITES: ([boolean, boolean] | [number, number] | [string, string])[] = [
   ['inactive', 'active'],
 ];
 
+const CYCLER_FIELDS: (keyof CyclerConfiguration)[] = ['$global', '$step', '$min', '$max'];
+
 const cyclerIndexCache: { [key: string]: number } = {};
 
 export function activate(context: vscode.ExtensionContext) {
@@ -63,56 +62,84 @@ export function activate(context: vscode.ExtensionContext) {
     'workspace.settings.cycler',
 
     async (args: SettingsCyclerArguments) => {
-      if (!args || !args.id || !args.values) {
+      if (!args) {
         vscode.window.showErrorMessage(`Please make sure your 'args' is not empty`);
         return;
       }
 
-      const values = Array.isArray(args.values) ? args.values : [args.values];
-
-      if (values.length <= 0) {
-        vscode.window.showWarningMessage(`Please make sure your 'args.value' is not empty'`);
+      let configurations: Configuration[];
+      if (!Array.isArray(args) && args.$values !== undefined) {
+        configurations = (Array.isArray(args.$values) ? args.$values : [args.$values]).map(
+          (value) => ({ ...value, $global: args.$global })
+        );
+      } else if (Array.isArray(args)) {
+        configurations = args;
+      } else if (typeof args === 'object') {
+        configurations = [args as Configuration];
+      } else {
+        vscode.window.showErrorMessage(
+          `Please make sure your 'args' is an array or an object with '$values' property`
+        );
         return;
       }
 
-      let workspaceConfiguration = vscode.workspace.getConfiguration();
+      if (configurations.length <= 0) {
+        vscode.window.showWarningMessage(`Please make sure your 'args' is not empty'`);
+        return;
+      }
+      const id = hash(configurations);
+      const workspaceConfiguration = vscode.workspace.getConfiguration();
 
-      let allOptions: Set<string> = new Set<string>();
+      const { configs, values } = configurations
+        .map((configuration) =>
+          parseConfiguration(configuration as Configuration & CyclerConfiguration)
+        )
+        .reduce(
+          (acc, [cyclerConfiguration, valuesConfiguration]) => {
+            acc.configs.push(cyclerConfiguration);
+            acc.values.push(valuesConfiguration);
+            return acc;
+          },
+          {
+            configs: [] as CyclerConfiguration[],
+            values: [] as Configuration[],
+          }
+        );
 
+      let involvedOptions: Set<string> = new Set<string>();
       for (const value of values) {
         for (const key in value) {
-          allOptions.add(key);
+          involvedOptions.add(key);
         }
       }
 
       let currentOptions: { [key: string]: unknown } = {};
-
-      for (let key of allOptions.values()) {
+      for (let key of involvedOptions.values()) {
         let val = workspaceConfiguration.inspect(key);
         if (!val) continue;
         currentOptions[val.key] =
           val.globalValue !== undefined ? val.globalValue : val.defaultValue;
       }
 
-      let promiseFns: (() => Thenable<void>)[] = [];
-
       let nextIndex: number;
-      if (cyclerIndexCache[args.id] === undefined) {
+      if (cyclerIndexCache[id] === undefined) {
         let currentIndex = -1;
         for (let index = 0, len = values.length; index < len; index++) {
-          let configuration = values[index];
-          if (shallowEqual(configuration, currentOptions)) {
+          if (shallowEqual(values[index], currentOptions)) {
             currentIndex = index;
           }
         }
         nextIndex = (currentIndex + 1) % values.length;
       } else {
-        nextIndex = (cyclerIndexCache[args.id] + 1) % values.length;
+        nextIndex = (cyclerIndexCache[id] + 1) % values.length;
       }
-      cyclerIndexCache[args.id] = nextIndex;
+      cyclerIndexCache[id] = nextIndex;
 
+      const promiseFns: (() => Thenable<void>)[] = [];
       Object.keys(values[nextIndex]).forEach((key) =>
-        promiseFns.push(makeOptionUpdater(key, values[nextIndex][key], workspaceConfiguration))
+        promiseFns.push(
+          makeOptionUpdater(key, values[nextIndex][key], configs[nextIndex], workspaceConfiguration)
+        )
       );
 
       const results = await Promise.allSettled(promiseFns.map((fn) => fn()));
@@ -142,26 +169,69 @@ function extractValFromInspection<T>(
 function makeOptionUpdater(
   key: string,
   val: unknown,
+  { $global, $max, $min, $step }: CyclerConfiguration,
   workspaceConfiguration: vscode.WorkspaceConfiguration
 ): () => Thenable<void> {
+  console.log('[extension] updater ', key, val, { $global, $max, $min, $step })
   const inspectionVal = workspaceConfiguration.inspect(key);
+  const scope = $global ? true : vscode.ConfigurationTarget.Workspace;
   if (val === '$inc') {
     const currentVal = extractValFromInspection(inspectionVal, 0);
-    const newVal = typeof currentVal === 'number' ? currentVal + 1 : 0;
-    return () => workspaceConfiguration.update(key, newVal, vscode.ConfigurationTarget.Workspace);
+    const newVal = typeof currentVal === 'number' ? currentVal + $step : 0;
+    const clampedVal = Math.min(Math.max(newVal, $min), $max);
+    return () => workspaceConfiguration.update(key, clampedVal, scope);
   } else if (val === '$dec') {
     const currentVal = extractValFromInspection(inspectionVal, 0);
-    const newVal = typeof currentVal === 'number' ? currentVal - 1 : 0;
-    return () => workspaceConfiguration.update(key, newVal, vscode.ConfigurationTarget.Workspace);
+    const newVal = typeof currentVal === 'number' ? currentVal - $step : 0;
+    const clampedVal = Math.min(Math.max(newVal, $min), $max);
+    return () => workspaceConfiguration.update(key, clampedVal, scope);
   } else if (val === '$toggle') {
     const currentVal = extractValFromInspection(inspectionVal);
     const isOposate = OPOSITES.some(([a]) => Object.is(a, currentVal));
     if (!isOposate) return () => Promise.resolve(undefined);
     const newVal = OPOSITES.find(([a]) => Object.is(a, currentVal))?.[1];
-    return () => workspaceConfiguration.update(key, newVal, vscode.ConfigurationTarget.Workspace);
+    console.log('[extension] updater $toggle', currentVal, newVal)
+    return () => workspaceConfiguration.update(key, newVal, scope);
   } else {
-    return () => workspaceConfiguration.update(key, val, vscode.ConfigurationTarget.Workspace);
+    return () => workspaceConfiguration.update(key, val, scope);
   }
 }
 
 export function deactivate() {}
+
+function shallowEqual(a: any, b: any): boolean {
+  // only check fist depth
+  for (let key in a) {
+    if (!a.hasOwnProperty(key)) continue;
+    if (!b.hasOwnProperty(key)) return false;
+    if (a[key] === b[key]) continue;
+    if (typeof a[key] !== 'object') return false;
+  }
+  for (let key in b) {
+    if (b.hasOwnProperty(key) && !a.hasOwnProperty(key)) return false;
+  }
+  return true;
+}
+
+function parseConfiguration(
+  configuration: Configuration & CyclerConfiguration
+): [cyclerConfiguration: CyclerConfiguration, valuesConfiguration: Configuration] {
+  const cyclerConfiguration: CyclerConfiguration = {
+    $global: false,
+    $step: 1,
+    $min: -Infinity,
+    $max: Infinity,
+  };
+  const valuesConfiguration: Configuration = {};
+  for (const key in configuration) {
+    if (CYCLER_FIELDS.includes(key as keyof CyclerConfiguration)) {
+      (cyclerConfiguration as any)[key] = configuration[key];
+    } else {
+      valuesConfiguration[key] = configuration[key];
+    }
+  }
+  return [cyclerConfiguration, valuesConfiguration] as [
+    cyclerConfiguration: CyclerConfiguration,
+    valuesConfiguration: Configuration
+  ];
+}

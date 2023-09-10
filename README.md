@@ -1,83 +1,83 @@
 # Workspace Settings Cycler
 
-Control any VS Code setting in your workspace by your favorite keybindings. This extension exist mainly to control settings of your current __workspace__ via keybindings
+Control any VS Code setting in your workspace by your favorite keybindings. This extension exist mainly to control settings of your current **workspace** or opened **folder** via keybindings. Here are some to help you get started.
 
 ## Sample Configuration
 
 ```json
- {
-    "key": "ctrl+shift+alt+x",
+  {
+    "key": "ctrl+shift+alt+t",
     "command": "workspace.settings.cycler",
     "args": {
-      "id": "show_tabs",
-      "values": {
-        "workbench.editor.showTabs": "$toggle",
-      },
+      "workbench.editor.showTabs": "$toggle",
     }
   },
   {
     "key": "ctrl+shift+alt+=",
     "command": "workspace.settings.cycler",
     "args": {
-      "id": "workspace_zoom_inc",
-      "values": {
-        "window.zoomLevel": "$inc",
-      },
+      "window.zoomLevel": "$inc",
     }
   },
   {
     "key": "ctrl+shift+alt+-",
     "command": "workspace.settings.cycler",
     "args": {
-      "id": "workspace_zoom_dec",
-      "values": {
-        "window.zoomLevel": "$dec",
-      },
+      "window.zoomLevel": "$dec",
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+]",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "editor.fontSize": "$inc",
+    }
+  },
+  {
+    "key": "ctrl+shift+alt+[",
+    "command": "workspace.settings.cycler",
+    "args": {
+      "editor.fontSize": "$dec",
     }
   },
   {
     "key": "ctrl+shift+alt+l",
     "command": "workspace.settings.cycler",
     "args": {
-      "id": "show_line_numbers",
-      "values": {
-        "editor.lineNumbers": "$toggle"
-      },
+      "editor.lineNumbers": "$toggle"
     }
   },
   {
     "key": "ctrl+shift+alt+s",
     "command": "workspace.settings.cycler",
     "args": {
-      "id": "show_status_bar",
-      "values": {
-        "workbench.statusBar.visible": "$toggle"
-      },
+      "workbench.statusBar.visible": "$toggle"
     }
   },
   {
     "key": "ctrl+shift+alt+a",
     "command": "workspace.settings.cycler",
     "args": {
-      "id": "show_activity_bar",
-      "values": {
-        "workbench.activityBar.visible": "$toggle"
-      },
+      "workbench.activityBar.visible": "$toggle"
     }
   },
   {
     "key": "ctrl+shift+alt+t",
     "command": "workspace.settings.cycler",
+    "args": [
+      {
+        "workbench.sideBar.location": "right"
+      },
+      {
+        "workbench.sideBar.location": "left"
+      }
+    ]
+  },
+  {
+    "key": "ctrl+shift+alt+c",
+    "command": "workspace.settings.cycler",
     "args": {
-      "id": "toggle_sidebar_location",
-      "values": [
-        {
-          "workbench.sideBar.location": "right"
-        },
-        {
-          "workbench.sideBar.location": "left"
-        }
-      ]
+      "window.commandCenter": "$toggle"
     }
   },
 
@@ -90,13 +90,7 @@ The shortcut you want to use
 Command should always be `workspace.settings.cycler`. You can create multiple keybindings and use the same `command` name.
 
 **args**
-arguments for the settings you want to toggle.
-
-**args.id**
-This is the **unique** id/name for the set of settings you want to toggle.
-
-**args.values**
-This is an array for settings you want to toggle. Every item in this array is a simple JavaScript dictionary, the format is like.
+arguments for the settings you want to toggle. Can be array of configurations or single configuration object. Check example above for usage details. Configuration is simple JavaScript dictionary, the format is like:
 
 ```
 {
@@ -104,11 +98,9 @@ This is an array for settings you want to toggle. Every item in this array is a 
 	"<SettingName>": <SettingValue>,
 	...
 }
-```
+``` 
 
-You can use single object instead of array.
-
-Special values can be used for settings:
+Special values can be used for <SettingValue>:
 
 - `$inc` - will increment setting value. usefull to control zoom levels or font sizes
 - `$dec` - oposite to `$inc`, will decrement setting value
@@ -123,5 +115,7 @@ Special values can be used for settings:
 ## Release Notes
 
 ### 0.0.1
-
 Initial release
+
+### 0.0.2
+Simplify command configuration
